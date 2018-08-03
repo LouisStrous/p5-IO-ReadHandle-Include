@@ -173,6 +173,25 @@ foreach my $test
      'read length ' . ($test->{title} // $test->{expect}));
 }
 
+# if an include file does not exist then the include directive is not
+# replaced
+
+my $input =
+                     <<EOD;
+Main file line 1.
+Main file line 2.
+#include does_not_exist.txt
+Main file line 3.
+EOD
+
+$tfh = prepare_files($input);
+
+$ifh = IO::ReadHandle::Include->new({ source => "$tfh",
+                                      include => qr/^#include (.*)$/ });
+@results = <$ifh>;
+is_deeply(\@results, [split_lines($input)],
+          'no interpolation of nonexistent files');
+
 done_testing();
 
 # Write contents to one or more temporary files.  Any <INC> in each
