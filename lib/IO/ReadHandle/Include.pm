@@ -18,11 +18,11 @@ facility
 
 =head1 VERSION
 
-Version 1.1
+Version 1.2
 
 =cut
 
-use version; our $VERSION = version->declare('v1.1');
+use version; our $VERSION = version->declare('v1.2');
 
 =head1 SYNOPSIS
 
@@ -283,7 +283,7 @@ sub CLOSE {
   # close any included files
   1 while $self->_end_include;
 
-  if ( reftype( $self->_get('main_source') ) eq '' ) {
+  if ( ( reftype( $self->_get('main_source') ) // '' ) eq '' ) {
 
     # the main source was passed as a scalar, so we opened its
     # filehandle

@@ -8,3 +8,7 @@ Revision history for IO-ReadHandle-Include
 
         If an include file isn't found, then instead of croaking don't
         replace the include directive.
+
+1.2     2018-08-20
+        Fix BUG in sub CLOSE.  reftype doesn't return '' but undef if
+        its argument is not a reference.
