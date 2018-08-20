@@ -12,3 +12,6 @@ Revision history for IO-ReadHandle-Include
 1.2     2018-08-20
         Fix BUG in sub CLOSE.  reftype doesn't return '' but undef if
         its argument is not a reference.
+
+        Avoid infinite recursion when an included file indirectly
+        includes itself again.
