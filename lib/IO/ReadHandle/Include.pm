@@ -290,7 +290,8 @@ sub CLOSE {
   # close any included files
   1 while $self->_end_include;
 
-  if ( ( reftype( $self->_get('main_source') ) // '' ) eq '' ) {
+  my $ms = $self->_get('main_source');
+  if ( defined( $ms ) && ( reftype( $ms ) // '' ) eq '' ) {
 
     # the main source was passed as a scalar, so we opened its
     # filehandle
