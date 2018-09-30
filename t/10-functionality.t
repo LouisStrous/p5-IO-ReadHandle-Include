@@ -62,9 +62,9 @@ my @expected = (
                );
 
 foreach my $i (0..$#results) {
-  is($results[$i]->{line}, $expected[$i], '<> text in scalar context');
-  is($results[$i]->{end_of_data}, ($i == $#results? 1: ''), 'eof(...)');
-  is($results[$i]->{end_of_data_OO}, ($i == $#results? 1: ''), '->eof');
+  is($results[$i]->{line}, $expected[$i], "$i: <> text in scalar context");
+  is($results[$i]->{end_of_data}, ($i == $#results? 1: ''), "$i: eof(...)");
+  is($results[$i]->{end_of_data_OO}, ($i == $#results? 1: ''), "$i: ->eof");
 }
 
 $ifh->seek(0,0);
@@ -81,6 +81,13 @@ is_deeply(\@results, \@expected, '->getline');
 $ifh->seek(0,0);
 @results = $ifh->getlines;
 is_deeply(\@results, \@expected, '->getlines');
+
+$ifh = undef;
+$tfh = undef;
+
+# delete temporary files/directories
+@tempfiles = ();
+@tempdirs = ();
 
 foreach my $test
   (
@@ -171,6 +178,12 @@ foreach my $test
      'read text ' . ($test->{title} // $test->{expect}));
   is($n, length($test->{expect}),
      'read length ' . ($test->{title} // $test->{expect}));
+
+  # delete temporary files/directories
+  close $ifh;
+  close $tfh;
+  @tempfiles = ();
+  @tempdirs = ();
 }
 
 # if an include file does not exist then the include directive is not
@@ -192,6 +205,60 @@ $ifh = IO::ReadHandle::Include->new({ source => "$tfh",
 is_deeply(\@results, [split_lines($input)],
           'no interpolation of nonexistent files');
 
+# delete temporary files/directories
+close $ifh;
+close $tfh;
+@tempfiles = ();
+@tempdirs = ();
+
+# no include cycles
+
+{
+ my $td = File::Temp->newdir(DIR => '.', UNLINK => 1);
+ my $tf1 = File::Temp->new(DIR => "$td", UNLINK => 1);
+ my $tf2 = File::Temp->new(DIR => "$td", UNLINK => 1);
+ my $fn1 = file($tf1)->basename;
+ my $fn2 = file($tf2)->basename;
+ print $tf1 <<EOD;
+File 1 line 1
+#include $fn2
+File 1 line 3
+EOD
+
+ print $tf2 <<EOD;
+File 2 line 1
+#include $fn1
+File 2 line 3
+EOD
+
+ $tf1->flush;
+ $tf2->flush;
+
+ $ifh = IO::ReadHandle::Include->new({ source => "$tf1",
+                                       include => qr/^#include (.*)$/ });
+
+ @results = <$ifh>;
+ close $ifh;
+
+ is_deeply(\@results, [split_lines(<<EOD)], "include cycle");
+File 1 line 1
+File 2 line 1
+#include $fn1
+File 2 line 3
+
+File 1 line 3
+EOD
+
+ close $tf2;
+ close $tf1;
+ $td = undef;
+
+ # delete temporary files/directories
+ close $ifh;
+ @tempfiles = ();
+ @tempdirs = ();
+}
+
 done_testing();
 
 # Write contents to one or more temporary files.  Any <INC> in each
@@ -208,7 +275,9 @@ sub prepare_files {
   while ($contents = pop @_) {
     # current file is in different (temporary) directory than previous
     # file
-    my $td = File::Temp->newdir(@tempdirs? (DIR => $tempdirs[-1]): ());
+    my $td = File::Temp->newdir(@tempdirs? (DIR => $tempdirs[-1]):
+                                (DIR => '.'),
+                                UNLINK => 1);
     $tfh = File::Temp->new(DIR => "$td");
     my $prev_fn = '';
     if (@tempdirs) {
